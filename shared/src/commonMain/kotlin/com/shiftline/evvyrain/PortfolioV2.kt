@@ -45,6 +45,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -471,9 +472,41 @@ private fun resolveCollision(a: PhysicsBody, b: PhysicsBody, radiusA: Float, rad
     Box(
         Modifier.offset { IntOffset(body.x.roundToInt(), body.y.roundToInt()) }
             .size(body.size)
-            .graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = body.rotation; this.shape = shape; clip = true }
-            .background(color, shape)
-            .hoverable(source)
+            // Keep pointer deltas in arena coordinates. Placing input after the rotating
+            // layer makes Compose transform them into the orb's local coordinate system.
+            .pointerInput(body, arena) {
+                val velocityTracker = VelocityTracker()
+                detectDragGestures(
+                    onDragStart = {
+                        velocityTracker.resetTracking()
+                        body.dragging = true
+                        body.vx = 0f
+                        body.vy = 0f
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    onDragEnd = {
+                        val velocity = velocityTracker.calculateVelocity()
+                        body.vx = velocity.x.coerceIn(-460f, 460f)
+                        body.vy = velocity.y.coerceIn(-460f, 460f)
+                        body.dragging = false
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    onDragCancel = {
+                        body.vx = 0f
+                        body.vy = 0f
+                        body.dragging = false
+                    },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                        val sizePx = body.size.toPx()
+                        body.x = (body.x + amount.x).coerceIn(0f, (arena.width - sizePx).coerceAtLeast(0f))
+                        body.y = (body.y + amount.y).coerceIn(0f, (arena.height - sizePx).coerceAtLeast(0f))
+                        body.rotation += amount.x.coerceIn(-12f, 12f) * .22f
+                        body.spin = (amount.x * 1.4f).coerceIn(-90f, 90f)
+                    },
+                )
+            }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val wheel = event.changes.firstOrNull()?.scrollDelta?.y?.coerceIn(-3f, 3f) ?: 0f
                 if (wheel != 0f) {
@@ -482,23 +515,9 @@ private fun resolveCollision(a: PhysicsBody, b: PhysicsBody, radiusA: Float, rad
                     event.changes.forEach { it.consume() }
                 }
             }
-            .pointerInput(body, arena) {
-                detectDragGestures(
-                    onDragStart = { body.dragging = true; body.vx = 0f; body.vy = 0f; haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
-                    onDragEnd = { body.dragging = false; haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
-                    onDragCancel = { body.dragging = false },
-                    onDrag = { change, amount ->
-                        change.consume()
-                        val sizePx = body.size.toPx()
-                        body.x = (body.x + amount.x).coerceIn(0f, (arena.width - sizePx).coerceAtLeast(0f))
-                        body.y = (body.y + amount.y).coerceIn(0f, (arena.height - sizePx).coerceAtLeast(0f))
-                        body.vx = (amount.x * 10f).coerceIn(-420f, 420f)
-                        body.vy = (amount.y * 10f).coerceIn(-420f, 420f)
-                        body.rotation += amount.x.coerceIn(-12f, 12f) * .22f
-                        body.spin = (amount.x * 1.4f).coerceIn(-90f, 90f)
-                    },
-                )
-            },
+            .hoverable(source)
+            .graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = body.rotation; this.shape = shape; clip = true }
+            .background(color, shape),
         contentAlignment = Alignment.Center,
     ) {
         Column(Modifier.graphicsLayer { rotationZ = -body.rotation }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
