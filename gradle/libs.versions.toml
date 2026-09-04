@@ -1,10 +1,10 @@
 [versions]
-androidx-lifecycle = "2.11.0-beta01"
-composeMultiplatform = "1.11.1"
+androidx-lifecycle = "2.11.0"
+composeMultiplatform = "1.12.0"
 junit = "4.13.2"
 kotlin = "2.4.10"
-kotlin-wrappers = "2026.8.4"
-material3 = "1.11.0-alpha07"
+kotlin-wrappers = "2026.9.0"
+material3 = "1.12.0-alpha03"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

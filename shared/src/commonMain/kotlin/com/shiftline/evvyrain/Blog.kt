@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.shiftline.evvyrain
 
 import androidx.compose.animation.AnimatedVisibility
@@ -200,7 +202,14 @@ internal fun BlogPostSheet(
             }
         }
     } else {
-        ModalBottomSheet(onDismissRequest = dismiss, modifier = Modifier.fillMaxHeight(.96f), sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        ModalBottomSheet(
+            onDismissRequest = dismiss,
+            modifier = Modifier.fillMaxHeight(.96f),
+            sheetState = rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+            ),
+        ) {
             PostContent(post, loadBinaryAsset, openUrl, dismiss, Modifier.fillMaxWidth().fillMaxHeight())
         }
     }
