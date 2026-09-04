@@ -128,15 +128,19 @@ private val PortfolioDarkScheme = darkColorScheme(
     )
 }
 
-private enum class StudioPage(val title: String) { Home("Hello"), Work("Work"), Stack("Stack"), Devices("Devices") }
+private enum class StudioPage(val title: String) { Home("Hello"), Work("Work"), Stack("Stack"), Devices("Devices"), Blog("Blog") }
 private data class Project(val name: String, val kicker: String, val body: String, val tech: String, val url: String)
 private val projects = listOf(
     Project("Skye", "01 · TELEGRAM BOT", "A Python-powered Telegram bot, with a web companion currently in the works.", "PYTHON / TELEGRAM", "https://github.com/evvyraine/skye-next"),
     Project("Sunkit", "02 · TOOLKIT", "Bright utilities built to make the browser feel more personal.", "FRONTEND / MOTION", "https://github.com/evvyraine/sunkit"),
-    Project("Ensage", "03 · CLI", "A compact Linux-first tool that stays out of your way.", "KOTLIN / LINUX", "https://github.com/evvyraine/ensage-x"),
+    Project("Ensage", "03 · SHARING WORKSPACE", "A security-first, self-hosted workspace for sharing text, files, and links — with a companion CLI.", "NEXT.JS / REACT / POSTGRESQL", "https://github.com/evvyraine/ensage-x"),
 )
 
-@Composable internal fun PortfolioAppV2(openUrl: (String) -> Unit) {
+@Composable internal fun PortfolioAppV2(
+    openUrl: (String) -> Unit,
+    loadTextAsset: suspend (String) -> String?,
+    loadBinaryAsset: suspend (String) -> ByteArray?,
+) {
     val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
     var dark by remember { mutableStateOf(systemDark) }
     var ready by remember { mutableStateOf(false) }
@@ -144,7 +148,7 @@ private val projects = listOf(
     MaterialExpressiveTheme(colorScheme = if (dark) PortfolioDarkScheme else PortfolioLightScheme, motionScheme = MotionScheme.expressive(), typography = portfolioTypography()) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             AnimatedContent(ready, transitionSpec = { (fadeIn() + scaleIn(initialScale = .97f)) togetherWith (fadeOut() + scaleOut(targetScale = 1.03f)) }, label = "load") {
-                if (it) Studio(openUrl, dark) { dark = !dark } else ExpressiveLoader()
+                if (it) Studio(openUrl, loadTextAsset, loadBinaryAsset, dark) { dark = !dark } else ExpressiveLoader()
             }
         }
     }
@@ -166,19 +170,29 @@ private val projects = listOf(
     }
 }
 
-@Composable private fun Studio(openUrl: (String) -> Unit, dark: Boolean, toggleTheme: () -> Unit) {
+@Composable private fun Studio(
+    openUrl: (String) -> Unit,
+    loadTextAsset: suspend (String) -> String?,
+    loadBinaryAsset: suspend (String) -> ByteArray?,
+    dark: Boolean,
+    toggleTheme: () -> Unit,
+) {
     var page by remember { mutableStateOf(StudioPage.Home) }
     var socials by remember { mutableStateOf(false) }
+    var selectedPost by remember { mutableStateOf<BlogPost?>(null) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 860.dp
         Row(Modifier.fillMaxSize()) {
             if (wide) StudioRail(page) { page = it }
             Crossfade(page, Modifier.weight(1f), animationSpec = spring(dampingRatio = .76f, stiffness = 240f), label = "studio page") { current ->
-                StudioPage(current, wide, openUrl, dark, toggleTheme)
+                StudioPage(current, wide, openUrl, loadTextAsset, loadBinaryAsset, { selectedPost = it }, dark, toggleTheme)
             }
         }
         if (!wide) StudioBar(page, { page = it }, Modifier.align(Alignment.BottomCenter))
         SocialFabMenu(socials, { socials = it }, openUrl, Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = if (wide) 22.dp else 98.dp))
+        selectedPost?.let { post ->
+            BlogPostSheet(post, wide, loadBinaryAsset, openUrl) { selectedPost = null }
+        }
     }
 }
 
@@ -205,9 +219,19 @@ private val projects = listOf(
     StudioPage.Work -> if (selected) Res.drawable.work_filled else Res.drawable.work
     StudioPage.Stack -> if (selected) Res.drawable.memory_filled else Res.drawable.memory
     StudioPage.Devices -> if (selected) Res.drawable.devices_filled else Res.drawable.devices
+    StudioPage.Blog -> if (selected) Res.drawable.article_filled else Res.drawable.article
 }
 
-@Composable private fun StudioPage(page: StudioPage, wide: Boolean, openUrl: (String) -> Unit, dark: Boolean, toggleTheme: () -> Unit) {
+@Composable private fun StudioPage(
+    page: StudioPage,
+    wide: Boolean,
+    openUrl: (String) -> Unit,
+    loadTextAsset: suspend (String) -> String?,
+    loadBinaryAsset: suspend (String) -> ByteArray?,
+    openPost: (BlogPost) -> Unit,
+    dark: Boolean,
+    toggleTheme: () -> Unit,
+) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = if (wide) 80.dp else 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth().padding(horizontal = if (wide) 42.dp else 18.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
             StudioToolbar(page, dark, toggleTheme, openUrl)
@@ -216,6 +240,7 @@ private val projects = listOf(
                 StudioPage.Work -> WorkScene(wide, openUrl)
                 StudioPage.Stack -> StackScene(wide)
                 StudioPage.Devices -> DeviceScene(wide)
+                StudioPage.Blog -> BlogScene(wide, loadTextAsset, loadBinaryAsset, openPost)
             }
         }
     }
@@ -508,5 +533,5 @@ private fun resolveCollision(a: PhysicsBody, b: PhysicsBody, radiusA: Float, rad
     }
 }
 
-@Composable private fun SceneHeading(title: String, subtitle: String) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { Text(title, style = MaterialTheme.typography.headlineLarge); Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.widthIn(max = 720.dp)) } }
-@Composable private fun AppIcon(resource: DrawableResource, description: String, modifier: Modifier = Modifier) { Icon(painterResource(resource), description.ifBlank { null }, modifier.size(24.dp)) }
+@Composable internal fun SceneHeading(title: String, subtitle: String) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { Text(title, style = MaterialTheme.typography.headlineLarge); Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.widthIn(max = 720.dp)) } }
+@Composable internal fun AppIcon(resource: DrawableResource, description: String, modifier: Modifier = Modifier) { Icon(painterResource(resource), description.ifBlank { null }, modifier.size(24.dp)) }
