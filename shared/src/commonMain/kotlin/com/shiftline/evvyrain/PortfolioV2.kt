@@ -547,7 +547,7 @@ private fun resolveCollision(a: PhysicsBody, b: PhysicsBody, radiusA: Float, rad
 @Composable private fun SocialFabMenu(expanded: Boolean, setExpanded: (Boolean) -> Unit, openUrl: (String) -> Unit, modifier: Modifier) {
     FloatingActionButtonMenu(expanded, button = { ToggleFloatingActionButton(expanded, setExpanded) { Icon(painterResource(if (expanded) Res.drawable.close else Res.drawable.alternate_email), if (expanded) "Close socials" else "Open socials", Modifier.size(28.dp), tint = if (expanded) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer) } }, modifier = modifier) {
         FloatingActionButtonMenuItem({ setExpanded(false); openUrl("https://github.com/evvyraine") }, { Text("GitHub · @evvyraine") }, { AppIcon(Res.drawable.code, "") })
-        FloatingActionButtonMenuItem({ setExpanded(false); openUrl("https://t.me/evvyraine") }, { Text("Telegram · @evvyraine") }, { AppIcon(Res.drawable.alternate_email, "") })
+        FloatingActionButtonMenuItem({ setExpanded(false); openUrl("https://t.me/evvyrn") }, { Text("Telegram · @evvyrn") }, { AppIcon(Res.drawable.alternate_email, "") })
         FloatingActionButtonMenuItem({ setExpanded(false); openUrl("https://x.com/evvyrain") }, { Text("X · @evvyrain") }, { AppIcon(Res.drawable.arrow_outward, "") })
     }
 }
